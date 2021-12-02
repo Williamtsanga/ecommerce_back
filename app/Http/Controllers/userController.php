@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\User;
+use App\Models\shoppingSessino;
 use Validator;
 use Hash;
 use Str;
+use Auth;
 
 class userController extends Controller
 {
@@ -54,6 +56,7 @@ class userController extends Controller
             'last_name' => 'required|string',
             'email' => 'required|string|unique:users',
             'password' => 'required|min:8',
+            'c_password' => 'required|same:password',
         ]);
 
         // for ($i=0; $i < $validator->errors()->count(); $i++) { 
@@ -100,6 +103,7 @@ class userController extends Controller
         } 
         
         $responseMessage = "Registration succesful";
+        shoppingSession::create(['user_id' => $user->id]);
         $accessToken = $user->createToken('authToken');
         // $responseMessage = 'Login successful';
         return $this->respondWithToken($accessToken,$responseMessage, $user);
@@ -127,7 +131,7 @@ class userController extends Controller
         // $user->logoutOtherDevices();
         // return $user;
         $responseMessage = "Successfully logged out";
-        return $this->del($responseMessage);
+        return $this->deleteCookie($responseMessage);
 
     }
 
@@ -147,15 +151,23 @@ class userController extends Controller
 
     public function viewProfile(Request $request){
         $responseMessage = "user profile";
-        // $data = Auth::guard("api")->user();
+        $validator = Validator::make($request->user()->toarray(), [
+			'role' => 'in:admin,seller',
+		]);
+		if ($validator->fails()) {
+			
+			return response()->json($validator->errors(), 417);
+		}
+        
         return response()->json([
             'success' => true,
             'message' => $responseMessage,
-            'data' => $request->user()
+            'user' => $request->user()
             
         ], 200);
 
-    }
+    }   
+    
 
     public function login(Request $request){
         $validator = Validator::make($request->all(),[
@@ -171,8 +183,7 @@ class userController extends Controller
         }
 
         $credentials = $request->only(["email","password"]);
-        // $credentials["active"] = 1;
-        // $credentials["deleted_at"] = null;
+
         $user = User::where('email' , $credentials['email'])->first();
         if($user){
             if(!auth()->attempt($credentials )){
@@ -188,15 +199,12 @@ class userController extends Controller
 
             $accessToken = auth()->user()->createToken('authToken');
 
-            $responseMessage = 'Login successful';
             // return $this->respondWithToken($accessToken,$responseMessage, auth()->user());
-            return $this->respondWithToken($accessToken,$responseMessage, auth()->user());
+            return $this->respondWithToken($accessToken,'authenticated',$user);
         }else {
-            $responseMessage = "Sorry this user does not exist";
             return response()->json([
                 'success' => false,
-                'message' => $responseMessage,
-                'error' => $responseMessage
+                'message' => "Sorry this user does not exist",
             ], 422);
 
         }
@@ -208,4 +216,63 @@ class userController extends Controller
     {
         return Str::random(10);
     }
+
+
+    public function adminLogin(Request $request)
+	{
+		$input = $request->all();
+		$validator = Validator::make($input, [
+			'email' => 'required|email',
+			'password' => 'required',
+		]);
+		if ($validator->fails()) {
+			
+			return response()->json(['error' =>  $validator->errors(),'message' => 'input errors'], 417);
+		}
+		$credentials = $request->only(['email', 'password']);
+		if (Auth::attempt($credentials)) {
+			if(Auth::user()->role == 'basic'){
+                return response()->json(['message' => 'Sorry your account type is not permitted, contact the administrator' ], 401);
+            }
+			$user = Auth::user();
+			$success = $user->createToken('MyApp', [$user->role]);
+            return $this->respondWithToken($success,'authenticated',$user);
+			// return response()->json(['success' => $success], 200);
+		}
+		else {
+			return response()->json(['message' => 'email or password invalid'], 401);
+		}
+	}
+	/**
+	 * admin register API
+	 * @return \Illuminate\Http\Response
+	 */
+	public function adminRegister(Request $request)
+	{
+		$validator = Validator::make($request->all(), [
+			'first_name' => 'required',
+			'last_name' => 'required',
+			'email' => 'required|email',
+            'role' => 'in:admin,seller',
+			'password' => 'required',
+			'c_password' => 'required|same:password',
+		]);
+		if ($validator->fails()) {
+			
+			return response()->json($validator->errors(), 417);
+		}
+		$user = User::create([
+			'first_name' => $request->first_name,
+			'last_name' => $request->last_name,
+			'email' => $request->email,
+            'activation_token' => Str::random(60),
+            'role' => $request->role,
+			'password' => Hash::make($request->password),
+		]);
+		$success['name'] = $user->first_name.' '.$user->last_name;
+        shoppingSession::create(['user_id' => $user->id]);
+
+		$success['token'] = $user->createToken('MyApp', [$request->role])->accessToken;
+		return response()->json(['success' => $success], 200);
+	}
 }

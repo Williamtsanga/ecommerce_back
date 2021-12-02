@@ -23,7 +23,8 @@ class User extends Authenticatable
         'password',
         'first_name',
         'last_name',
-        'activation_token'
+        'activation_token',
+        'role'
     ];
 
     /**
@@ -44,4 +45,13 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
     ];
+
+    public function session()
+    {
+        return $this->hasone(shoppingSession::class);
+    }
+    public function addresses()
+    {
+        return $this->hasmany(userAddr::class);
+    }
 }

@@ -21,6 +21,7 @@ class product extends Model
         'additional_infos',
         'status',
         'preview_front_image',
-        'preview_rear_image'
+        'preview_rear_image',
+        'unique_id'
     ];
 }

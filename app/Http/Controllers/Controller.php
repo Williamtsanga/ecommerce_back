@@ -12,9 +12,13 @@ class Controller extends BaseController
 {
     use AuthorizesRequests, DispatchesJobs, ValidatesRequests;
 
-
-    public function respondWithToken($token, $responseMessage, $data , $redirect = false)
+    public function deleteCookie($message)
     {
+        return response()->json(['message' => $message], 200)
+        ->withCookie(cookie()->forget('_token'));
+    }
+
+    public function respondWithToken($token, $responseMessage,$data){
 
 
     // 'name' => '_token',
@@ -26,23 +30,13 @@ class Controller extends BaseController
     // 'secure' => null, // for localhost
     // 'httponly' => true,
     // 'samesite' => true,
-
-    
-    if(!$redirect){
-
         return Response([
             // "expires_at" => $token->token->expires_at
-            "expires_at" => Carbon::parse($token->token->expires_at)->toDateTimeString()
+            "expires_at" => Carbon::parse($token->token->expires_at)->toDateTimeString(),
+            'user' => $data,
+            'message' => $responseMessage
         ])->withCookie(cookie('_token',$token->accessToken,Carbon::parse($token->token->expires_at)->diffInMinutes(Carbon::now()),null,null,null,true,true));
 
-        }
-    else{
-        // dd($redirect);
-        // ->withCookie(cookie('user-info',$token->accessToken,Carbon::parse($token->token->expires_at)->diffInMinutes(Carbon::now())))
-        return redirect("/shop/product/lolo-beurr?cat=spacies")->cookie('user-info',$token->accessToken,Carbon::parse($token->token->expires_at)->diffInMinutes(Carbon::now()));
-    }
 
-    //                 ->withCookie(cookie('logged' , "1" , 60*24 , null , null , false, false))
-    //                 ->withCookie(cookie('user-info',$token->accessToken , 60*24));
-    }
+}
 }

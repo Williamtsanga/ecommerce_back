@@ -8,4 +8,10 @@ use Illuminate\Database\Eloquent\Model;
 class productDiscount extends Model
 {
     use HasFactory;
+    protected $fillable = [
+        'product_id',
+        'name',
+        'percentace',
+        'active',
+    ];
 }
