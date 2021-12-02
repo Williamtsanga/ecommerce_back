@@ -17,16 +17,17 @@ class specs extends Controller
 {
     public function truncs()
     {
-        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
-        productCombination::truncate();
-        imageGallery::truncate();
-        productDiscount::truncate();
-        productVariationOptionValue::truncate();
-        productVariationOption::truncate();
-        review::truncate();
-        product::truncate();
-        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        // DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        // productCombination::truncate();
+        // imageGallery::truncate();
+        // productDiscount::truncate();
+        // productVariationOptionValue::truncate();
+        // productVariationOption::truncate();
+        // review::truncate();
+        // product::truncate();
+        // DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
-        return "ok";
+        // return "ok";
+        return response()->json(['oui' => 20], 200)->cookie('test',456)->cookie('tast',123);
     }
 }

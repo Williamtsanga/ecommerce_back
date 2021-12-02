@@ -28,26 +28,16 @@ class ProductController extends Controller
         if($request->subcategory)
             $whereclause['subcategory'] = $request->subcategory;
 
-        // $raw_products_db = '
-        //     SELECT p.id,p.unique_id,p.name,p.preview_front_image,p.preview_rear_image,p.flash,p.status,pc.price,pc.id AS comb_id,
-        //     (SELECT AVG(r.rate) FROM reviews r WHERE r.product_id = p.id ) AS rate, 
-        //     (SELECT  COUNT(r.rate) FROM reviews r WHERE r.product_id = p.id ) AS review_count, 
-        //     (SELECT d.percentage FROM product_discounts d WHERE d.product_id = p.id) AS discount,
-        //     CASE 
-        //         WHEN (SELECT d.percentage FROM product_discounts d WHERE d.product_id = p.id) IS NULL THEN pc.price
-        //         ELSE (SELECT (pc.price - d.percentage*pc.price) FROM product_discounts d WHERE d.product_id = p.id ) 
-        //     END AS new_price
-        //     FROM products p INNER JOIN product_combinations pc ON pc.product_id = p.id WHERE pc.defaults = 1 AND p.category_id = '. $category->id;
-            $products = product::where($whereclause)
-            ->selectRaw('(SELECT AVG(r.rate) FROM reviews r WHERE r.product_id = p.id ) AS rate')
-            ->selectRaw('(SELECT  COUNT(r.rate) FROM reviews r WHERE r.product_id = p.id ) AS review_count')
-            ->selectRaw('(SELECT d.percentage FROM product_discounts d WHERE d.product_id = p.id) AS discount')
+            $products = product::where($whereclause)            
+            ->select("products.id","unique_id","name","preview_front_image","preview_rear_image","flash","status","product_combinations.price","product_combinations.id AS comb_id")
+            ->selectRaw('(SELECT AVG(r.rate) FROM reviews r WHERE r.product_id = products.id ) AS rate')
+            ->selectRaw('(SELECT  COUNT(r.rate) FROM reviews r WHERE r.product_id = products.id ) AS review_count')
+            ->selectRaw('(SELECT d.percentage FROM product_discounts d WHERE d.product_id = products.id) AS discount')
             ->selectRaw('CASE 
-                            WHEN (SELECT d.percentage FROM product_discounts d WHERE d.product_id = p.id) IS NULL THEN pc.price
-                            ELSE (SELECT (pc.price - d.percentage*pc.price) FROM product_discounts d WHERE d.product_id = p.id ) 
+                            WHEN (SELECT d.percentage FROM product_discounts d WHERE d.product_id = products.id) IS NULL THEN product_combinations.price
+                            ELSE (SELECT (product_combinations.price - d.percentage*product_combinations.price) FROM product_discounts d WHERE d.product_id = products.id ) 
                         END AS new_price')
             ->join('product_combinations','product_combinations.product_id','=','products.id')
-            ->select("products.id","unique_id","name","preview_front_image","preview_rear_image","flash","status","product_combinations.price","product_combinations.id AS comb_id")
             ->get();
             
         $raw_variation_db = '

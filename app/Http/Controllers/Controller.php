@@ -30,12 +30,13 @@ class Controller extends BaseController
     // 'secure' => null, // for localhost
     // 'httponly' => true,
     // 'samesite' => true,
-        return Response([
+    return response()->json([
             // "expires_at" => $token->token->expires_at
             "expires_at" => Carbon::parse($token->token->expires_at)->toDateTimeString(),
             'user' => $data,
             'message' => $responseMessage
-        ])->withCookie(cookie('_token',$token->accessToken,Carbon::parse($token->token->expires_at)->diffInMinutes(Carbon::now()),null,null,null,true,true));
+        ], 200)
+        ->cookie('_token',$token->accessToken,Carbon::parse($token->token->expires_at)->diffInMinutes(Carbon::now()),null,null,null,true,true);
 
 
 }

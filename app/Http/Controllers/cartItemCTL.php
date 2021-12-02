@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\cartItem;
 use Illuminate\Http\Request;
 use App\Models\product;
+use App\Models\productCombination;
 use App\Models\shoppingSession;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -23,10 +24,14 @@ class cartItemCTL extends Controller
     public function add(Request $request){
         $user = $request->user();
 
-        $product = Product::where(["unique_id"=>$request->product,'product_combinations.id'=> $request->combination ])
-        ->selectRaw('(SELECT d.percentage FROM product_discounts d WHERE d.product_id = products.id) AS discount')
+        $product = Product::where(["unique_id"=>$request->product_unique_id,'product_combinations.id'=> $request->combination ])
+        ->selectRaw('(SELECT front FROM image_galleries WHERE image_galleries.id = product_combinations.image_gallery_id) AS image')
+        ->selectRaw('CASE 
+                            WHEN (SELECT d.percentage FROM product_discounts d WHERE d.product_id = products.id) IS NULL THEN product_combinations.price
+                            ELSE (SELECT (product_combinations.price - d.percentage*product_combinations.price) FROM product_discounts d WHERE d.product_id = products.id ) 
+                        END AS price')
         ->join('product_combinations','product_combinations.product_id','=','products.id')
-        ->select('products.id AS product_id','products.unique_id','products.name','product_combinations.price','products.preview_front_image AS image','products.name')
+        ->select('products.unique_id','products.name','products.preview_front_image AS image','products.name')
         ->get()->first();
 
         $total = 0;
@@ -47,7 +52,6 @@ class cartItemCTL extends Controller
             return response()->json([
                 'item' => [
                     'name' => $product->name,
-                    'product_id' => $product->product_id,
                     'quantity' => $request->quantity,
                     'unique_id' => $product->unique_id,
                     'image' => $product->image,
@@ -68,17 +72,17 @@ class cartItemCTL extends Controller
 
                 }
                 if (isset($code['cart']) ) {
-                    if (isset($code['cart'][$request->product])) {
+                    if (isset($code['cart'][$request->combination])) {
                         return response()->json(['message' => 'already exist'], 500);
                     }
                 }
                 
                 $total += $temp;
-                $code['cart'][$request->product] = ["id" => $request->product , 'qty' => $request->quantity];
+                $code['cart'][$request->combination] = ["product_unique_id" => $request->product_unique_id , 'qty' => $request->quantity];
                 $code['total'] = $total;
 
             } else {
-                $code['cart'][$request->product] = ['id' => $request->product,'qty' => $request->quantity];
+                $code['cart'][$request->combination] = ['product_unique_id' => $request->product_unique_id,'qty' => $request->quantity];
                 $code['total'] = $temp ;
                 $total = $temp;
 
@@ -106,7 +110,8 @@ class cartItemCTL extends Controller
             $prod = cartItem::where('shopping_session_id',$user->session->id)
             ->join('product_combinations','product_combinations.id','=','cart_items.combination_id')
             ->join('products','products.id','=','product_combinations.product_id')
-            ->select('product_combinations.price','products.name','quantity','products.unique_id AS unique_id','product_combinations.id AS comb_id','products.preview_front_image AS image')
+            ->selectRaw('(SELECT front FROM image_galleries WHERE image_galleries.id = product_combinations.image_gallery_id) AS image')
+            ->select('product_combinations.price','products.name','quantity','products.unique_id AS unique_id','product_combinations.id AS comb_id')
             ->get();
             return response()->json([
                 'items' => $prod,
@@ -117,21 +122,28 @@ class cartItemCTL extends Controller
             ], 200);
         }
         else
-        {    $cook = $request->cookie('_ltsi');
+        {    
+            $cook = $request->cookie('_ltsi');
             $code = unserialize(base64_decode($cook));
             $result = [];
-            if ($cook  && isset($code['cart']) && count($code['cart']) ) {
-                $raw_recent = 'SELECT p.id AS product_id,p.price,p.preview_front_image AS image,p.name FROM products p WHERE p.id in (product_array)';
-                $db_string = Str::replace('product_array' , implode(',' , array_keys($code['cart'])) , $raw_recent );
-                $recent = DB::select( DB::raw($db_string));
-                foreach ($recent as $value) {
-                    $result[$value->product_id] = [
-                        'product_id' => $value->product_id,
+            if ($cook  && isset($code['cart']) && count($code['cart']) ) {                
+                // $end = '(test)';
+                // str_replace('test',array_keys($code['cart']),$end);
+                $products = DB::select(' select `product_combinations`.`price`, `products`.`name`, 
+                `products`.`unique_id` as `unique_id`, `product_combinations`.`id` as `comb_id`, 
+                (SELECT front FROM image_galleries WHERE image_galleries.id = product_combinations.image_gallery_id) AS image from `product_combinations` 
+                inner join `products` on 
+                `products`.`id` = `product_combinations`.`product_id` 
+                where product_combinations.id in ('.implode(',' , array_keys($code['cart'])).')');
+                foreach ($products as $value) {
+                    array_push($result,[
+                        'product_unique_id' => $value->unique_id,
                         'price' => $value->price,
                         'image' => $value->image,
-                        'quantity' => (int)$code['cart'][$value->product_id]['qty'],
+                        'comb_id' => $value->comb_id,
+                        'quantity' => (int)$code['cart'][$value->comb_id]['qty'],
                         'name' => $value->name
-                    ];
+                    ]);
                 }
 
             } else {

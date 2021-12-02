@@ -26,6 +26,11 @@ Route::group(['prefix' => 'wishlist'] , function() {
   Route::delete('remove',[wishlistCTL::class , "remove"]);
 
 });
+Route::group(['prefix' => 'checkout'], function ()
+{
+  Route::get('fetchinfo', [checkoutController::class,'getInfo']);
+  Route::post('placeorder', [checkoutController::class,'placeOrder']);
+});
 
 Route::group(['prefix' => 'auth'] , function ()
 {
@@ -76,6 +81,7 @@ Route::group(['prefix' => 'user',"middleware" => ['auth:api']], function ()
   Route::group(['prefix' => 'checkout'], function ()
   {
     Route::get('fetchinfo', [checkoutController::class,'getInfo']);
+    Route::post('placeorder', [checkoutController::class,'placeOrder']);
   });
 
   Route::group(['prefix' => 'wishlist'] , function() {
