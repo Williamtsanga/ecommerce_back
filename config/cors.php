@@ -19,7 +19,7 @@ return [
 
     'allowed_methods' => ['post,get,patch,delete'],
 
-    'allowed_origins' => ['http://lebocal.com'],
+    'allowed_origins' => ['https://lebocal.vercel.app','https://lebocal.herokuapp.com'],
 
     'allowed_origins_patterns' => [],
 
