@@ -16,7 +16,10 @@ use Illuminate\Support\Facades\Route;
 // Route::get('/', function () {
 //     return view('welcome');
 // });
-
+Route::get('generate', function () {
+    \Illuminate\Support\Facades\Artisan::call('storage:link');
+    echo 'ok';
+});
 
 
 Route::get('/{any}', function () { 
