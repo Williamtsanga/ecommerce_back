@@ -28,8 +28,77 @@ class ProductController extends Controller
         if($request->subcategory)
             $whereclause['subcategory'] = $request->subcategory;
 
+
+
+        //     SELECT
+        //     `products`.`id`,
+        //     `unique_id`,
+        //     `products`.`name`,
+        //     `preview_front_image`,
+        //     `preview_rear_image`,
+        //     `flash`,
+        //     `status`,
+        //     `product_combinations`.`price`,
+        //     `product_combinations`.`id` AS `comb_id`,
+        //     pvo.name AS pvo,
+        //     pvov.name AS pvov,
+        //     pvov.alias AS alias,
+        //     (
+        //     SELECT
+        //         AVG(r.rate)
+        //     FROM
+        //         reviews r
+        //     WHERE
+        //         r.product_id = products.id
+        // ) AS rate,
+        // (
+        //     SELECT
+        //         COUNT(r.rate)
+        //     FROM
+        //         reviews r
+        //     WHERE
+        //         r.product_id = products.id
+        // ) AS review_count,
+        // (
+        //     SELECT
+        //         d.percentage
+        //     FROM
+        //         product_discounts d
+        //     WHERE
+        //         d.product_id = products.id
+        // ) AS discount,
+        // CASE WHEN(
+        //     SELECT
+        //         d.percentage
+        //     FROM
+        //         product_discounts d
+        //     WHERE
+        //         d.product_id = products.id
+        // ) IS NULL THEN product_combinations.price ELSE(
+        //     SELECT
+        //         (
+        //             product_combinations.price - d.percentage * product_combinations.price
+        //         )
+        //     FROM
+        //         product_discounts d
+        //     WHERE
+        //         d.product_id = products.id
+        // )
+        // END AS new_price
+        // FROM
+        //     `products`
+        // INNER JOIN `product_combinations` ON `product_combinations`.`product_id` = `products`.`id`
+        // INNER JOIN product_variation_options pvo ON
+        //     pvo.product_id = products.id
+        // INNER JOIN product_variation_option_values pvov ON
+        //     pvov.product_variation_id = pvo.id
+        // WHERE
+        //     (
+        //         `category_id` = 4 AND `product_combinations`.`defaults` = 1
+        //     )
+
             $products = product::where($whereclause)            
-            ->select("products.id","unique_id","name","preview_front_image","preview_rear_image","flash","status","product_combinations.price","product_combinations.id AS comb_id")
+            ->select("products.id","products.unique_id","products.name","preview_front_image","preview_rear_image","flash","status","product_combinations.price","product_combinations.id AS comb_id")
             ->selectRaw('(SELECT AVG(r.rate) FROM reviews r WHERE r.product_id = products.id ) AS rate')
             ->selectRaw('(SELECT  COUNT(r.rate) FROM reviews r WHERE r.product_id = products.id ) AS review_count')
             ->selectRaw('(SELECT d.percentage FROM product_discounts d WHERE d.product_id = products.id) AS discount')
@@ -38,6 +107,8 @@ class ProductController extends Controller
                             ELSE (SELECT (product_combinations.price - d.percentage*product_combinations.price) FROM product_discounts d WHERE d.product_id = products.id ) 
                         END AS new_price')
             ->join('product_combinations','product_combinations.product_id','=','products.id')
+            ->join('product_variation_options','product_variation_options.product_id','=','products.id')
+            ->join('product_variation_option_values','product_variation_option_values.product_variation_id','=','product_variation_options.id')
             ->get();
             
         $raw_variation_db = '

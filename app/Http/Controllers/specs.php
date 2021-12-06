@@ -28,6 +28,7 @@ class specs extends Controller
         // DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
         // return "ok";
-        return response()->json(['oui' => 20], 200)->cookie('test',456)->cookie('tast',123);
+        return product::all();
+        // return response()->json(['oui' => 20], 200)->cookie('test',456)->cookie('tast',123);
     }
 }

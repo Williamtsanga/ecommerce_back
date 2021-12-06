@@ -5,7 +5,7 @@ import store from "@/store"
 // import axios from 'axios'
 // axios.defaults.baseURL = "/api/admin/"
 
-import Layout from '@/components/Layout/Layout';
+// import Layout from '@/components/Layout/Layout';
 import Typography from '@/pages/Typography/Typography';
 import Tables from '@/pages/Tables/Tables';
 import Notifications from '@/pages/Notifications/Notifications';
@@ -14,9 +14,9 @@ import Maps from '@/pages/Maps/Maps';
 import Charts from '@/pages/Charts/Charts';
 import Products from '@/pages/Products/AddProducts'
 import ProductsList from '@/pages/Products/List'
-import Dashboard from '@/pages/Visits/Visits';
-import Login from '@/pages/Login/Login';
-import ErrorPage from '@/pages/Error/Error';
+// import Dashboard from '@/pages/Visits/Visits';
+// import Login from '@/pages/Login/Login';
+// import ErrorPage from '@/pages/Error/Error';
 
 Vue.use(Router);
 
@@ -27,22 +27,22 @@ Vue.use(Router);
     {
       path: '/login',
       name: 'Login',
-      component: Login,
+      component: import('@/pages/Login/Login'),
     },
     {
       path: '/error',
       name: 'Error',
-      component: ErrorPage,
+      component: import ('@/pages/Error/Error'),
     },
     {
       path: '/',
       name: 'Layout',
-      component: Layout,
+      component: import ('@/components/Layout/Layout'),
       children: [
         {
           path: 'dashboard',
           name: 'Dashboard',
-          component: Dashboard,
+          component: import('@/pages/Visits/Visits'),
         },
         {
           path: 'typography',
@@ -89,7 +89,7 @@ Vue.use(Router);
     {
       path: '*',
       name: 'Error',
-      component: ErrorPage,
+      component: import ('@/pages/Error/Error'),
     }
   ],
 });
