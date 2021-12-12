@@ -13,25 +13,17 @@ use Illuminate\Support\Str;
 
 class cartItemCTL extends Controller
 {
-    public function try(Request $request)
-    {
-        if($request->user())
-
-            return $request->user()->session;
-        else
-            return "maff";
-    }
     public function add(Request $request){
         $user = $request->user();
 
-        $product = Product::where(["unique_id"=>$request->product_unique_id,'product_combinations.id'=> $request->combination ])
+        $product = Product::where(["unique_id"=>$request->product_unique_id,'product_combinations.id'=> $request->combination_id ])
+        ->select('products.unique_id','products.name','products.name')
         ->selectRaw('(SELECT front FROM image_galleries WHERE image_galleries.id = product_combinations.image_gallery_id) AS image')
         ->selectRaw('CASE 
                             WHEN (SELECT d.percentage FROM product_discounts d WHERE d.product_id = products.id) IS NULL THEN product_combinations.price
                             ELSE (SELECT (product_combinations.price - d.percentage*product_combinations.price) FROM product_discounts d WHERE d.product_id = products.id ) 
                         END AS price')
         ->join('product_combinations','product_combinations.product_id','=','products.id')
-        ->select('products.unique_id','products.name','products.preview_front_image AS image','products.name')
         ->get()->first();
 
         $total = 0;
@@ -52,6 +44,7 @@ class cartItemCTL extends Controller
             return response()->json([
                 'item' => [
                     'name' => $product->name,
+                    'combination_id' => $request->combination,
                     'quantity' => $request->quantity,
                     'unique_id' => $product->unique_id,
                     'image' => $product->image,
@@ -72,17 +65,17 @@ class cartItemCTL extends Controller
 
                 }
                 if (isset($code['cart']) ) {
-                    if (isset($code['cart'][$request->combination])) {
+                    if (isset($code['cart'][$request->combination_id])) {
                         return response()->json(['message' => 'already exist'], 500);
                     }
                 }
                 
                 $total += $temp;
-                $code['cart'][$request->combination] = ["product_unique_id" => $request->product_unique_id , 'qty' => $request->quantity];
+                $code['cart'][$request->combination_id] = ["unique_id" => $request->product_unique_id , 'qty' => $request->quantity,'combination_id' => $request->combination_id];
                 $code['total'] = $total;
 
             } else {
-                $code['cart'][$request->combination] = ['product_unique_id' => $request->product_unique_id,'qty' => $request->quantity];
+                $code['cart'][$request->combination] = ['product_unique_id' => $request->product_unique_id,'qty' => $request->quantity,"combination_id" => $request->combination];
                 $code['total'] = $temp ;
                 $total = $temp;
 
@@ -93,6 +86,7 @@ class cartItemCTL extends Controller
                     'name' => $product->name,
                     'quantity' => $request->quantity,
                     'unique_id' => $product->unique_id,
+                    'combination_id' => $request->combination_id,
                     'image' => $product->image,
                     'price' => $product->price,
                 ],
@@ -110,8 +104,12 @@ class cartItemCTL extends Controller
             $prod = cartItem::where('shopping_session_id',$user->session->id)
             ->join('product_combinations','product_combinations.id','=','cart_items.combination_id')
             ->join('products','products.id','=','product_combinations.product_id')
+            ->select('cart_items.id AS cart_id','products.name','quantity','products.unique_id AS unique_id','product_combinations.id AS combination_id')
+            ->selectRaw('CASE 
+            WHEN (SELECT d.percentage FROM product_discounts d WHERE d.product_id = products.id) IS NULL THEN product_combinations.price
+            ELSE (SELECT (product_combinations.price - d.percentage*product_combinations.price) FROM product_discounts d WHERE d.product_id = products.id ) 
+            END AS price')
             ->selectRaw('(SELECT front FROM image_galleries WHERE image_galleries.id = product_combinations.image_gallery_id) AS image')
-            ->select('product_combinations.price','products.name','quantity','products.unique_id AS unique_id','product_combinations.id AS comb_id')
             ->get();
             return response()->json([
                 'items' => $prod,
@@ -129,19 +127,29 @@ class cartItemCTL extends Controller
             if ($cook  && isset($code['cart']) && count($code['cart']) ) {                
                 // $end = '(test)';
                 // str_replace('test',array_keys($code['cart']),$end);
-                $products = DB::select(' select `product_combinations`.`price`, `products`.`name`, 
-                `products`.`unique_id` as `unique_id`, `product_combinations`.`id` as `comb_id`, 
-                (SELECT front FROM image_galleries WHERE image_galleries.id = product_combinations.image_gallery_id) AS image from `product_combinations` 
-                inner join `products` on 
-                `products`.`id` = `product_combinations`.`product_id` 
-                where product_combinations.id in ('.implode(',' , array_keys($code['cart'])).')');
+                $products = productCombination::whereIn('product_combinations.id' ,array_keys($code['cart']) )
+                ->select('products.name', 'products.unique_id AS unique_id', 'product_combinations.id as combination_id')
+                ->selectRaw('CASE 
+                            WHEN (SELECT d.percentage FROM product_discounts d WHERE d.product_id = products.id) IS NULL THEN product_combinations.price
+                            ELSE (SELECT (product_combinations.price - d.percentage*product_combinations.price) FROM product_discounts d WHERE d.product_id = products.id ) 
+                            END AS price')
+                ->selectRaw('(SELECT front FROM image_galleries WHERE image_galleries.id = product_combinations.image_gallery_id) AS image')
+                ->join('products','products.id','=','product_combinations.product_id')
+                ->get();
+                // return $products;
+                // $products = DB::select(' select `product_combinations`.`price`, `products`.`name`, 
+                // `products`.`unique_id` as `unique_id`, `product_combinations`.`id` as `combination_id`, 
+                // (SELECT front FROM image_galleries WHERE image_galleries.id = product_combinations.image_gallery_id) AS image from `product_combinations` 
+                // inner join `products` on 
+                // `products`.`id` = `product_combinations`.`product_id` 
+                // where product_combinations.id in ('.implode(',' , array_keys($code['cart'])).')');
                 foreach ($products as $value) {
                     array_push($result,[
-                        'product_unique_id' => $value->unique_id,
+                        'unique_id' => $value->unique_id,
                         'price' => $value->price,
                         'image' => $value->image,
-                        'comb_id' => $value->comb_id,
-                        'quantity' => (int)$code['cart'][$value->comb_id]['qty'],
+                        'combination_id' => $value->combination_id,
+                        'quantity' => (int)$code['cart'][$value->combination_id]['qty'],
                         'name' => $value->name
                     ]);
                 }
@@ -163,21 +171,20 @@ class cartItemCTL extends Controller
         
         $user = $request->user();
         if($user){
-            $test = cartItem::where('combination_id',$request->comb_id)->delete();
+            $test = cartItem::where('combination_id',$request->combination_id)->delete();
             return response()->json([
                 'total'=> cartItem::where('shopping_session_id',$user->session->id)
             ->selectRaw('(SELECT SUM(price*quantity)) AS total')
             ->get()->first()->total,
-            'id' => $request->comb_id,
-            'test' => $test
+            // 'test' => $test
         ], 200);
         }
         else{
             $code = unserialize(base64_decode($request->cookie('_ltsi')));
 
-            $product = product::find($request->id);
+            $product = productCombination::find($request->combination_id);
             
-            $total = $code['total'] - ($product->price*$code['cart'][$request->id]['qty']);
+            $total = $code['total'] - ($product->price*$code['cart'][$request->combination_id]['qty']);
             unset($code['cart'][$request->id]);
 
             // $cart = $request->session()->get('cart');
@@ -196,30 +203,66 @@ class cartItemCTL extends Controller
             // $request->session()->put('cart',$cart);
             $code['total'] = $total;
         return response()->json([
-            'message' => 'ok',
-            'code' => $code,
+            // 'message' => 'ok',
+            // 'code' => $code,
             'total' => $total
         ], 200)->cookie('_ltsi',base64_encode(serialize($code)),50000);
         }
     }
     public function update(Request $request)
     {
-        $code = unserialize(base64_decode($request->cookie('_ltsi')));
-        $newUpdate = $code['cart'][$request->id]['qty'];
-        $prod = product::find($request->id);
-        $total = $code['total'];
-        if($request->action == 'INCREMENT'){
-            $total += $prod->price;
-            $code['cart'][$request->id]['qty'] = $newUpdate + 1;
-        }
-        else if ($request->action == 'DECREMENT') {
-            $total -= $prod->price;
-            $code['cart'][$request->id]['qty'] = $newUpdate -1;
-        }
-        else {}
-        
+        $user = $request->user();
+        if($user) {
+            $cart = cartItem::find($request->cart_id);
+            switch ($request->action) {
+                case 'INCREMENT':
+                    $cart->quantity++;
+                    break;
+                case 'DECREMENT':
+                    $cart->quantity--;
+                    break;
+                case 'SET':
+                    $cart->quantity = $request->actualQuantity;
+                    break;
+                
+                default:
+                    break;
+            }
 
-        $code['total'] = $total;
-        return response()->json(['code' => $code], 200)->cookie('_ltsi',base64_encode(serialize($code)),50000);
+            $cart->save(); 
+            return response()->json([
+                'total' => cartItem::where('shopping_session_id',$user->session->id)
+                ->selectRaw('(SELECT SUM(price*quantity))AS total')
+                ->get()->first()->total,
+                'quantity' => $cart->quantity
+     ], 200);
+
+        }
+        else {
+            $code = unserialize(base64_decode($request->cookie('_ltsi')));
+            $oldQuantity = $code['cart'][$request->combination_id]['qty'];
+            $prod = productCombination::find($request->combination_id);
+            $total = $code['total'];
+            switch ($request->action) {
+                case 'INCREMENT':
+                    $total += $prod->price;
+                    $code['cart'][$request->combination_id]['qty'] = $oldQuantity + 1;
+                    break;
+                case 'DECREMENT':
+                    $total -= $prod->price;
+                    $code['cart'][$request->combination_id]['qty'] = $oldQuantity -1;
+
+                    break;
+                case 'SET':
+                    $total += ($prod->price*($request->actualQuantity-$oldQuantity));
+                    $code['cart'][$request->combination_id]['qty'] = $request->actualQuantity;
+                    break;
+                default:
+                    break;
+            }
+
+            $code['total'] = $total;
+    }
+        return response()->json(['total' => $total,'quantity' => $code['cart'][$request->combination_id]['qty']], 200)->cookie('_ltsi',base64_encode(serialize($code)),50000);
     }
 }

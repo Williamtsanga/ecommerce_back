@@ -4,11 +4,14 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\User;
-use App\Models\shoppingSessino;
+use App\Models\shoppingSession;
 use Validator;
 use Hash;
 use Str;
+use App\Models\productCombination;
 use Auth;
+use App\Models\cartItem;
+
 
 class userController extends Controller
 {
@@ -104,8 +107,9 @@ class userController extends Controller
         
         $responseMessage = "Registration succesful";
         shoppingSession::create(['user_id' => $user->id]);
-        $accessToken = $user->createToken('authToken');
-        // $responseMessage = 'Login successful';
+
+		$accessToken = $user->createToken('MyApp', ['basic']);
+
         return $this->respondWithToken($accessToken,$responseMessage, $user);
 
 
@@ -149,7 +153,7 @@ class userController extends Controller
     }
 
 
-    public function viewProfile(Request $request){
+    public function viewAdminProfile(Request $request){
         $responseMessage = "user profile";
         $validator = Validator::make($request->user()->toarray(), [
 			'role' => 'in:admin,seller',
@@ -166,7 +170,36 @@ class userController extends Controller
             
         ], 200);
 
-    }   
+    }
+
+    private function addToCart($shopping_session_id,$cook) {
+        $code = unserialize(base64_decode($cook));
+        $result = [];
+        if ($cook  && isset($code['cart']) && count($code['cart']) ) {  
+            $products = productCombination::whereIn('product_combinations.id' ,array_keys($code['cart']) )
+            ->select('products.name', 'products.unique_id AS unique_id', 'product_combinations.id as combination_id')
+            ->selectRaw('CASE 
+                        WHEN (SELECT d.percentage FROM product_discounts d WHERE d.product_id = products.id) IS NULL THEN product_combinations.price
+                        ELSE (SELECT (product_combinations.price - d.percentage*product_combinations.price) FROM product_discounts d WHERE d.product_id = products.id ) 
+                        END AS price')
+            ->selectRaw('(SELECT front FROM image_galleries WHERE image_galleries.id = product_combinations.image_gallery_id) AS image')
+            ->join('products','products.id','=','product_combinations.product_id')
+            ->get();
+            foreach ($products as $value) {
+                $newCart = new cartItem;
+                $newCart->combination_id = $value->combination_id;
+                $newCart->quantity = (int)$code['cart'][$value->combination_id]['qty'];
+                $newCart->shopping_session_id = $shopping_session_id;
+                $newCart->price = $value->price;
+                $newCart->save();
+            }
+            unset($code['cart']);
+            unset($code['total']);
+
+        }
+        return base64_encode(serialize($code));
+    }
+
     
 
     public function login(Request $request){
@@ -197,10 +230,11 @@ class userController extends Controller
             }
             // $request->session()->regenerate();
 
-            $accessToken = auth()->user()->createToken('authToken');
-
+            $accessToken = auth()->user()->createToken('MyApp',[$user->role]);
+            $newCode = $this->addToCart($user->session->id,$request->cookie('_ltsi'));
             // return $this->respondWithToken($accessToken,$responseMessage, auth()->user());
-            return $this->respondWithToken($accessToken,'authenticated',$user);
+            return $this->respondWithToken($accessToken,'authenticated',$user)
+            ->cookie('_ltsi',$newCode,50000);
         }else {
             return response()->json([
                 'success' => false,

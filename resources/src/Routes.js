@@ -6,14 +6,14 @@ import store from "@/store"
 // axios.defaults.baseURL = "/api/admin/"
 
 // import Layout from '@/components/Layout/Layout';
-import Typography from '@/pages/Typography/Typography';
-import Tables from '@/pages/Tables/Tables';
-import Notifications from '@/pages/Notifications/Notifications';
-import Icons from '@/pages/Icons/Icons';
-import Maps from '@/pages/Maps/Maps';
-import Charts from '@/pages/Charts/Charts';
-import Products from '@/pages/Products/AddProducts'
-import ProductsList from '@/pages/Products/List'
+// import Typography from '@/pages/Typography/Typography';
+// import Tables from '@/pages/Tables/Tables';
+// import Notifications from '@/pages/Notifications/Notifications';
+// import Icons from '@/pages/Icons/Icons';
+// import Maps from '@/pages/Maps/Maps';
+// import Charts from '@/pages/Charts/Charts';
+// import Products from '@/pages/Products/AddProducts'
+// import ProductsList from '@/pages/Products/List'
 // import Dashboard from '@/pages/Visits/Visits';
 // import Login from '@/pages/Login/Login';
 // import ErrorPage from '@/pages/Error/Error';
@@ -27,62 +27,62 @@ Vue.use(Router);
     {
       path: '/login',
       name: 'Login',
-      component: import('@/pages/Login/Login'),
+      component: () => import('@/pages/Login/Login'),
     },
     {
       path: '/error',
       name: 'Error',
-      component: import ('@/pages/Error/Error'),
+      component: () => import ('@/pages/Error/Error'),
     },
     {
       path: '/',
       name: 'Layout',
-      component: import ('@/components/Layout/Layout'),
+      component: () => import ('@/components/Layout/Layout'),
       children: [
         {
           path: 'dashboard',
           name: 'Dashboard',
-          component: import('@/pages/Visits/Visits'),
+          component: () => import('@/pages/Visits/Visits'),
         },
         {
           path: 'typography',
           name: 'Typography',
-          component: Typography,
+          component: () => import('@/pages/Typography/Typography') ,
         },
         {
           path: 'tables',
           name: 'Typography',
-          component: Tables,
+          component: () => import('@/pages/Tables/Tables'),
         },
         {
           path: 'notifications',
           name: 'Notifications',
-          component: Notifications,
+          component: () => import ('@/pages/Notifications/Notifications'),
         },
         {
           path: 'components/icons',
           name: 'Icons',
-          component: Icons,
+          component: () => import('@/pages/Icons/Icons'),
         },
         {
           path: 'components/maps',
           name: 'Maps',
-          component: Maps,
+          component: () => import('@/pages/Maps/Maps'),
         },
         {
           path: 'components/charts',
           name: 'Charts',
-          component: Charts,
+          component: () => import('@/pages/Charts/Charts'),
         },
         {
           path: 'ecommerce/addproducts',
           name: 'Products',
-          component: Products,
+          component: () => import('@/pages/Products/AddProducts'),
         },
         {
           path: 'ecommerce/products',
           name: 'ProductsList',
-          component: ProductsList,
+          component: () => import('@/pages/Products/List'),
         },
       ],
     },

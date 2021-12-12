@@ -62,13 +62,20 @@ Route::group(['prefix' => 'admin',"middleware" => ['auth:api','scope:admin,selle
 	Route::post('upload', [adminController::class,'upload']);
 	Route::get('products', [adminController::class,'getProducts']);
 	Route::get('subcategories', [adminController::class,'getSubcategories']);
-  Route::get('view-profile',[userController::class,'viewProfile']);
+  Route::get('view-profile',[userController::class,'viewAdminProfile']);
   Route::get('logout', [userController::class,'logout'] );
 
 });
 
-Route::group(['prefix' => 'user',"middleware" => ['auth:api']], function ()
-{
+Route::group(['prefix' => 'user',"middleware" => ['auth:api']], function () {
+
+  Route::get('logout', [userController::class,'logout'] );
+
+
+  Route::get('profile', function (Request $request) {
+      return $request->user();
+  });
+
   Route::group(['prefix' => 'cart'], function ()
   {
     Route::post('add',[cartItemCTL::class , "add"]);
@@ -91,7 +98,11 @@ Route::group(['prefix' => 'user',"middleware" => ['auth:api']], function ()
     Route::delete('remove',[wishlistCTL::class , "remove"]);
   
   });
-
+  Route::group(['prefix' => 'review'], function ()
+  {
+    Route::post('add', [reviewCTL::class,'add']);
+  });
+  
 });
 
 Route::get('/product', [ProductController::class , 'getProduct']);

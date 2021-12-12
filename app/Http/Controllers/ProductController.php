@@ -98,7 +98,7 @@ class ProductController extends Controller
         //     )
 
             $products = product::where($whereclause)            
-            ->select("products.id","products.unique_id","products.name","preview_front_image","preview_rear_image","flash","status","product_combinations.price","product_combinations.id AS comb_id")
+            ->select("products.id","products.unique_id","products.name","preview_front_image","preview_rear_image","flash","status","product_combinations.price","product_combinations.id AS combination_id")
             ->selectRaw('(SELECT AVG(r.rate) FROM reviews r WHERE r.product_id = products.id ) AS rate')
             ->selectRaw('(SELECT  COUNT(r.rate) FROM reviews r WHERE r.product_id = products.id ) AS review_count')
             ->selectRaw('(SELECT d.percentage FROM product_discounts d WHERE d.product_id = products.id) AS discount')
@@ -107,8 +107,8 @@ class ProductController extends Controller
                             ELSE (SELECT (product_combinations.price - d.percentage*product_combinations.price) FROM product_discounts d WHERE d.product_id = products.id ) 
                         END AS new_price')
             ->join('product_combinations','product_combinations.product_id','=','products.id')
-            ->join('product_variation_options','product_variation_options.product_id','=','products.id')
-            ->join('product_variation_option_values','product_variation_option_values.product_variation_id','=','product_variation_options.id')
+            // ->join('product_variation_options','product_variation_options.product_id','=','products.id')
+            // ->join('product_variation_option_values','product_variation_option_values.product_variation_id','=','product_variation_options.id')
             ->get();
             
         $raw_variation_db = '
@@ -131,8 +131,14 @@ class ProductController extends Controller
         $subcategory = DB::select(DB::raw($raw_subcategory_db));
             // $raw_products_db = str_replace('catID', $request->category, $raw_products_db);
             // $id = new ObjectID();
+        $all = 0;
+        // foreach ($subcategory as $key) {
+        //     $all += $key['number'];
+        // }
         return response()->json([
+            'category'=>$category->name,
             'subcategories' => $subcategory,
+            'all' => $all,
             'products' => $products,
             'variations' => $this->group($variations) 
         ], 200);
@@ -212,13 +218,20 @@ class ProductController extends Controller
         // ->selectRaw('(SELECT d.percentage FROM product_discounts d WHERE d.product_id = products.id) AS discount')
         // ->join('product_combinations','product_combinations.product_id','=','products.id')
         // ->where('products.unique_id', $request->item)->get();
-
-        $product = Product::where(["unique_id"=>$request->item,'product_combinations.defaults'=>1])
+        $whereclause = [
+            "unique_id" => $request->item
+        ];
+        if ($request->comb_id)
+            $whereclause['product_combinations.id'] = $request->comb_id;
+        else
+            $whereclause['product_combinations.defaults'] = 1;
+        
+        $product = Product::where($whereclause)        
+        ->select('products.id','products.unique_id','products.name','products.flash','products.status','products.category','products.summary','products.describtion','products.additional_infos')
         ->selectRaw('(SELECT AVG(r.rate) FROM reviews r WHERE r.product_id = products.id ) AS rate')
         ->selectRaw('(SELECT  COUNT(r.rate) FROM reviews r WHERE r.product_id = products.id ) AS review_count')
         ->selectRaw('(SELECT d.percentage FROM product_discounts d WHERE d.product_id = products.id) AS discount')
         ->join('product_combinations','product_combinations.product_id','=','products.id')
-        ->select('products.id','products.unique_id','products.name','products.flash','products.status','products.category','products.summary','products.describtion','products.additional_infos')
         ->get()->first();
 
 
@@ -228,7 +241,7 @@ class ProductController extends Controller
             return response()->json(['message' => "Error"], 500);
 
 
-        $reviews = review::select('name','message','user_id','product_id','email','id',DB::raw("DATE_FORMAT(reviews.created_at,'%M %c,%Y') AS date"))->where('product_id',$request->item);
+        $reviews = review::select('name','rate','message','user_id','product_id','email','id',DB::raw("DATE_FORMAT(reviews.created_at,'%M %c,%Y') AS date"))->where('product_id',$product->id);
 
         $related = DB::select( DB::raw("
         SELECT p.id,p.name,p.unique_id,p.preview_front_image,p.preview_rear_image,p.flash,p.status,pc.price,pc.id AS comb_id,
