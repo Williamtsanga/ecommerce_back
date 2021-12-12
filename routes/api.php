@@ -114,6 +114,4 @@ Route::group(['prefix' => 'review'], function ()
 {
 	Route::post('add', [reviewCTL::class,'add']);
 });
-
-
 Route::get('actions', [specs::class,'truncs'] );
